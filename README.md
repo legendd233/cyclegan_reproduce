@@ -2,7 +2,7 @@
 
 基于论文 *Unpaired Image-to-Image Translation using Cycle-Consistent Adversarial Networks* (Zhu et al., ICCV 2017) 的复现实验。
 
-本项目在 Maps 和 Monet2Photo 两个数据集上**从零完成了 200 epoch 的完整训练**，并使用预训练模型在 Cityscapes 上进行了测试，包含完整的训练日志、测试结果、损失曲线可视化与数据分析报告。
+本项目在 Maps 和 Monet2Photo 两个数据集上**从零完成了 200 epoch 的完整训练**，Cityscapes 数据集**训练尚在进行中**，当前提供阶段性测试结果。包含完整的训练日志、测试结果、损失曲线可视化与数据分析报告。
 
 ## 复现配置
 
@@ -29,7 +29,7 @@
 |--------|------|------|----------|----------|----------|
 | Maps | 航拍图 | 地图 | 从零训练 200 epoch | 1096 | 50 组 |
 | Monet2Photo | 莫奈画作 | 真实照片 | 从零训练 200 epoch | 6287 | 63 组 |
-| Cityscapes | 真实照片 | 语义分割图 | 预训练模型测试 | — | 50 组 |
+| Cityscapes | 真实照片 | 语义分割图 | 训练中（阶段性结果） | — | 50 组 |
 
 ## 训练结果
 
@@ -63,7 +63,7 @@
 | ![](results/monet_cyclegan/test_latest/images/00010_real_A.png) | ![](results/monet_cyclegan/test_latest/images/00010_fake_B.png) | ![](results/monet_cyclegan/test_latest/images/00010_rec_A.png) |
 | ![](results/monet_cyclegan/test_latest/images/00020_real_A.png) | ![](results/monet_cyclegan/test_latest/images/00020_fake_B.png) | ![](results/monet_cyclegan/test_latest/images/00020_rec_A.png) |
 
-**Cityscapes：真实照片 → 语义分割 (A→B)**
+**Cityscapes：真实照片 → 语义分割 (A→B)** *— 训练中，当前为阶段性结果*
 
 | 输入 real_A (照片) | 生成 fake_B (分割图) | 真实 real_B (分割图) |
 |:---:|:---:|:---:|
