@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CycleGAN 复现 Demo</title>
+<style>
+  :root { --bg: #0f0f0f; --card: #1a1a1a; --border: #2a2a2a; --text: #e0e0e0; --dim: #888; --accent: #5b9bd5; --accent2: #dd8452; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, "Helvetica Neue", "PingFang SC", sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+
+  .hero { text-align: center; padding: 60px 20px 40px; background: linear-gradient(135deg, #1a1a2e, #16213e); border-bottom: 1px solid var(--border); }
+  .hero h1 { font-size: 2.2em; font-weight: 700; margin-bottom: 8px; }
+  .hero p { color: var(--dim); font-size: 1.05em; max-width: 700px; margin: 0 auto; }
+  .hero .tags { margin-top: 16px; }
+  .hero .tag { display: inline-block; background: rgba(91,155,213,0.15); color: var(--accent); border: 1px solid rgba(91,155,213,0.3); border-radius: 20px; padding: 4px 14px; margin: 4px; font-size: 0.85em; }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+
+  .section { padding: 50px 0; border-bottom: 1px solid var(--border); }
+  .section:last-child { border-bottom: none; }
+  .section h2 { font-size: 1.6em; margin-bottom: 8px; }
+  .section .subtitle { color: var(--dim); margin-bottom: 30px; font-size: 0.95em; }
+
+  /* Dataset tabs */
+  .tab-bar { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; }
+  .tab-btn { padding: 8px 20px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--dim); cursor: pointer; font-size: 0.95em; transition: all 0.2s; }
+  .tab-btn:hover { border-color: var(--accent); color: var(--text); }
+  .tab-btn.active { background: rgba(91,155,213,0.15); border-color: var(--accent); color: var(--accent); }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* Direction header */
+  .dir-header { display: flex; align-items: center; gap: 12px; margin: 20px 0 14px; padding: 10px 16px; background: var(--card); border-radius: 8px; border: 1px solid var(--border); }
+  .dir-header .arrow { font-size: 1.4em; color: var(--accent); }
+  .dir-header h3 { font-size: 1.05em; font-weight: 600; }
+  .dir-header span { color: var(--dim); font-size: 0.85em; }
+
+  /* Image grid */
+  .sample-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+  .sample-row.six { grid-template-columns: repeat(6, 1fr); }
+  .img-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; transition: transform 0.2s; }
+  .img-card:hover { transform: scale(1.02); }
+  .img-card img { width: 100%; display: block; }
+  .img-card .caption { text-align: center; padding: 6px; font-size: 0.8em; color: var(--dim); }
+  .img-card .caption.highlight { color: var(--accent); font-weight: 600; }
+
+  /* Loss charts */
+  .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 20px; }
+  .chart-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .chart-card img { width: 100%; display: block; }
+  .chart-card .chart-title { padding: 10px 16px; font-size: 0.9em; color: var(--dim); border-top: 1px solid var(--border); }
+
+  /* Stats table */
+  .stats-table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+  .stats-table th, .stats-table td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.9em; }
+  .stats-table th { color: var(--dim); font-weight: 500; font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stats-table td:first-child { font-weight: 600; }
+  .stats-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+  /* Sample selector */
+  .sample-nav { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .sample-nav button { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border); background: var(--card); color: var(--text); cursor: pointer; font-size: 1.1em; transition: all 0.2s; }
+  .sample-nav button:hover { border-color: var(--accent); }
+  .sample-nav .counter { color: var(--dim); font-size: 0.9em; min-width: 80px; text-align: center; }
+
+  @media (max-width: 768px) {
+    .sample-row { grid-template-columns: 1fr 1fr; }
+    .sample-row.six { grid-template-columns: repeat(3, 1fr); }
+    .chart-grid { grid-template-columns: 1fr; }
+    .hero h1 { font-size: 1.5em; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Hero -->
+<div class="hero">
+  <h1>CycleGAN 复现结果展示</h1>
+  <p>Unpaired Image-to-Image Translation using Cycle-Consistent Adversarial Networks (Zhu et al., 2017)</p>
+  <div class="tags">
+    <span class="tag">ResNet-9blocks</span>
+    <span class="tag">PatchGAN 70×70</span>
+    <span class="tag">LSGAN</span>
+    <span class="tag">200 Epochs</span>
+    <span class="tag">3 Datasets</span>
+  </div>
+</div>
+
+<!-- Test Results -->
+<div class="section">
+  <div class="container">
+    <h2>测试结果</h2>
+    <p class="subtitle">在三个数据集上使用训练完成的模型（epoch 200）进行推理</p>
+
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchTab('maps')">Maps (地图 ↔ 航拍)</button>
+      <button class="tab-btn" onclick="switchTab('monet')">Monet2Photo (莫奈 ↔ 照片)</button>
+      <button class="tab-btn" onclick="switchTab('cityscapes')">Cityscapes (照片 ↔ 语义分割)</button>
+    </div>
+
+    <!-- Maps -->
+    <div class="tab-content active" id="tab-maps">
+      <div class="dir-header">
+        <span class="arrow">→</span>
+        <h3>方向 A→B：航拍图 → 地图</h3>
+        <span>real_A → G(real_A) = fake_B → F(fake_B) = rec_A</span>
+      </div>
+      <div class="sample-nav">
+        <button onclick="prevSample('maps','ab')">‹</button>
+        <span class="counter" id="maps-ab-counter">1 / 5</span>
+        <button onclick="nextSample('maps','ab')">›</button>
+      </div>
+      <div id="maps-ab-gallery"></div>
+
+      <div class="dir-header">
+        <span class="arrow" style="color:var(--accent2)">←</span>
+        <h3>方向 B→A：地图 → 航拍图</h3>
+        <span>real_B → F(real_B) = fake_A → G(fake_A) = rec_B</span>
+      </div>
+      <div class="sample-nav">
+        <button onclick="prevSample('maps','ba')">‹</button>
+        <span class="counter" id="maps-ba-counter">1 / 5</span>
+        <button onclick="nextSample('maps','ba')">›</button>
+      </div>
+      <div id="maps-ba-gallery"></div>
+    </div>
+
+    <!-- Monet -->
+    <div class="tab-content" id="tab-monet">
+      <div class="dir-header">
+        <span class="arrow">→</span>
+        <h3>方向 A→B：莫奈画作 → 真实照片</h3>
+        <span>real_A → G(real_A) = fake_B → F(fake_B) = rec_A</span>
+      </div>
+      <div class="sample-nav">
+        <button onclick="prevSample('monet','ab')">‹</button>
+        <span class="counter" id="monet-ab-counter">1 / 5</span>
+        <button onclick="nextSample('monet','ab')">›</button>
+      </div>
+      <div id="monet-ab-gallery"></div>
+
+      <div class="dir-header">
+        <span class="arrow" style="color:var(--accent2)">←</span>
+        <h3>方向 B→A：真实照片 → 莫奈风格</h3>
+        <span>real_B → F(real_B) = fake_A → G(fake_A) = rec_B</span>
+      </div>
+      <div class="sample-nav">
+        <button onclick="prevSample('monet','ba')">‹</button>
+        <span class="counter" id="monet-ba-counter">1 / 5</span>
+        <button onclick="nextSample('monet','ba')">›</button>
+      </div>
+      <div id="monet-ba-gallery"></div>
+    </div>
+
+    <!-- Cityscapes -->
+    <div class="tab-content" id="tab-cityscapes">
+      <div class="dir-header">
+        <span class="arrow">→</span>
+        <h3>方向 A→B：真实照片 → 语义分割图</h3>
+        <span>real_A → G(real_A) = fake_B → F(fake_B) = rec_A</span>
+      </div>
+      <div class="sample-nav">
+        <button onclick="prevSample('cityscapes','ab')">‹</button>
+        <span class="counter" id="cityscapes-ab-counter">1 / 5</span>
+        <button onclick="nextSample('cityscapes','ab')">›</button>
+      </div>
+      <div id="cityscapes-ab-gallery"></div>
+
+      <div class="dir-header">
+        <span class="arrow" style="color:var(--accent2)">←</span>
+        <h3>方向 B→A：语义分割图 → 真实照片</h3>
+        <span>real_B → F(real_B) = fake_A → G(fake_A) = rec_B</span>
+      </div>
+      <div class="sample-nav">
+        <button onclick="prevSample('cityscapes','ba')">‹</button>
+        <span class="counter" id="cityscapes-ba-counter">1 / 5</span>
+        <button onclick="nextSample('cityscapes','ba')">›</button>
+      </div>
+      <div id="cityscapes-ba-gallery"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Training Curves -->
+<div class="section">
+  <div class="container">
+    <h2>训练损失曲线</h2>
+    <p class="subtitle">灰色虚线标记 epoch 100（学习率开始线性衰减）</p>
+
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchLossTab('maps-loss')">Maps</button>
+      <button class="tab-btn" onclick="switchLossTab('monet-loss')">Monet2Photo</button>
+      <button class="tab-btn" onclick="switchLossTab('compare-loss')">跨数据集对比</button>
+    </div>
+
+    <div class="tab-content active" id="tab-maps-loss">
+      <div class="chart-grid">
+        <div class="chart-card"><img src="figures/fig1_maps_cycle_idt.png"><div class="chart-title">Cycle Consistency Loss & Identity Loss</div></div>
+        <div class="chart-card"><img src="figures/fig2_maps_gan.png"><div class="chart-title">Generator & Discriminator Loss</div></div>
+      </div>
+      <div class="chart-grid" style="margin-top:20px">
+        <div class="chart-card"><img src="figures/fig7_maps_all_losses.png"><div class="chart-title">全部 8 项损失独立曲线</div></div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-monet-loss">
+      <div class="chart-grid">
+        <div class="chart-card"><img src="figures/fig3_monet_cycle_idt.png"><div class="chart-title">Cycle Consistency Loss & Identity Loss</div></div>
+        <div class="chart-card"><img src="figures/fig4_monet_gan.png"><div class="chart-title">Generator & Discriminator Loss</div></div>
+      </div>
+      <div class="chart-grid" style="margin-top:20px">
+        <div class="chart-card"><img src="figures/fig8_monet_all_losses.png"><div class="chart-title">全部 8 项损失独立曲线</div></div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-compare-loss">
+      <div class="chart-grid">
+        <div class="chart-card"><img src="figures/fig5_cycle_compare.png"><div class="chart-title">Cycle Loss 跨数据集对比</div></div>
+        <div class="chart-card"><img src="figures/fig6_final_loss_compare.png"><div class="chart-title">Epoch 200 各损失项最终均值</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Config & Stats -->
+<div class="section">
+  <div class="container">
+    <h2>实验配置与统计</h2>
+    <p class="subtitle">所有超参数与论文原文完全一致</p>
+
+    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(340px,1fr)); gap:20px;">
+      <div>
+        <h3 style="font-size:1em; margin-bottom:12px; color:var(--accent)">核心超参数</h3>
+        <table class="stats-table">
+          <tr><th>参数</th><th>值</th></tr>
+          <tr><td>Generator</td><td>ResNet 9-blocks, ngf=64</td></tr>
+          <tr><td>Discriminator</td><td>PatchGAN 70×70, ndf=64, 3层</td></tr>
+          <tr><td>GAN Mode</td><td>LSGAN</td></tr>
+          <tr><td>Learning Rate</td><td>0.0002 (Adam, β1=0.5)</td></tr>
+          <tr><td>λ (cycle)</td><td>10.0</td></tr>
+          <tr><td>λ (identity)</td><td>5.0 (0.5 × λ)</td></tr>
+          <tr><td>Image Buffer</td><td>50</td></tr>
+          <tr><td>Input Size</td><td>286 → crop 256</td></tr>
+          <tr><td>Batch Size</td><td>1</td></tr>
+        </table>
+      </div>
+      <div>
+        <h3 style="font-size:1em; margin-bottom:12px; color:var(--accent2)">数据集统计</h3>
+        <table class="stats-table">
+          <tr><th>数据集</th><th>训练</th><th>测试</th></tr>
+          <tr><td>Maps</td><td>~1096 张/epoch, 200 epochs</td><td>50 samples</td></tr>
+          <tr><td>Monet2Photo</td><td>~6287 张/epoch, 200 epochs</td><td>63 samples</td></tr>
+          <tr><td>Cityscapes</td><td>使用预训练模型</td><td>50 samples</td></tr>
+        </table>
+        <h3 style="font-size:1em; margin:20px 0 12px; color:var(--accent2)">Epoch 200 损失 (均值)</h3>
+        <table class="stats-table">
+          <tr><th>损失项</th><th>Maps</th><th>Monet</th></tr>
+          <tr><td>cycle_A</td><td>0.584</td><td>0.511</td></tr>
+          <tr><td>cycle_B</td><td>0.206</td><td>0.504</td></tr>
+          <tr><td>D_A</td><td>0.085</td><td>0.143</td></tr>
+          <tr><td>D_B</td><td>0.197</td><td>0.085</td></tr>
+          <tr><td>G_A</td><td>0.726</td><td>0.495</td></tr>
+          <tr><td>G_B</td><td>0.313</td><td>0.733</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="text-align:center; padding:30px; color:var(--dim); font-size:0.85em; border-top:1px solid var(--border);">
+  CycleGAN Reproduction &middot; Based on Zhu et al. (ICCV 2017) &middot; 2026-03-15
+</div>
+
+<script>
+// ========== Sample data ==========
+const datasets = {
+  maps: {
+    base: 'results/maps_cyclegan/test_latest/images/',
+    ids: ['1000_A','1001_A','1002_A','1003_A','1004_A','1005_A','1006_A','1007_A','1008_A','1009_A'],
+    sep: '_'
+  },
+  monet: {
+    base: 'results/monet_cyclegan/test_latest/images/',
+    ids: ['00010','00020','00030','00040','00050','00060','00070','00080','00090','00100'],
+    sep: '_'
+  },
+  cityscapes: {
+    base: 'results/cityscapes_cyclegan/test_latest/images/',
+    ids: ['0_A','100_A','101_A','102_A','103_A','104_A','105_A','106_A','107_A','108_A'],
+    sep: '_'
+  }
+};
+
+const state = {};
+for (const ds of ['maps','monet','cityscapes']) {
+  state[ds] = { ab: 0, ba: 0 };
+}
+
+function imgCard(src, label, highlight) {
+  return `<div class="img-card"><img src="${src}" loading="lazy"><div class="caption${highlight?' highlight':''}">${label}</div></div>`;
+}
+
+function renderGallery(ds, dir) {
+  const d = datasets[ds];
+  const idx = state[ds][dir];
+  const id = d.ids[idx];
+  const el = document.getElementById(`${ds}-${dir}-gallery`);
+  const counter = document.getElementById(`${ds}-${dir}-counter`);
+  counter.textContent = `${idx+1} / ${d.ids.length}`;
+
+  if (dir === 'ab') {
+    el.innerHTML = `<div class="sample-row">${
+      imgCard(`${d.base}${id}${d.sep}real_A.png`, '输入 (real_A)', false)
+    }${
+      imgCard(`${d.base}${id}${d.sep}fake_B.png`, '生成 (fake_B)', true)
+    }${
+      imgCard(`${d.base}${id}${d.sep}rec_A.png`, '重建 (rec_A)', false)
+    }</div>`;
+  } else {
+    el.innerHTML = `<div class="sample-row">${
+      imgCard(`${d.base}${id}${d.sep}real_B.png`, '输入 (real_B)', false)
+    }${
+      imgCard(`${d.base}${id}${d.sep}fake_A.png`, '生成 (fake_A)', true)
+    }${
+      imgCard(`${d.base}${id}${d.sep}rec_B.png`, '重建 (rec_B)', false)
+    }</div>`;
+  }
+}
+
+function nextSample(ds, dir) {
+  state[ds][dir] = (state[ds][dir] + 1) % datasets[ds].ids.length;
+  renderGallery(ds, dir);
+}
+function prevSample(ds, dir) {
+  state[ds][dir] = (state[ds][dir] - 1 + datasets[ds].ids.length) % datasets[ds].ids.length;
+  renderGallery(ds, dir);
+}
+
+// ========== Tabs ==========
+function switchTab(name) {
+  document.querySelectorAll('#tab-maps,#tab-monet,#tab-cityscapes').forEach(e => e.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  const bar = document.getElementById('tab-'+name).previousElementSibling;
+  // update button states
+  const section = document.getElementById('tab-'+name).closest('.section');
+  section.querySelectorAll('.tab-bar')[0].querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.toggle('active', b.textContent.toLowerCase().includes(name));
+  });
+}
+
+function switchLossTab(name) {
+  document.querySelectorAll('#tab-maps-loss,#tab-monet-loss,#tab-compare-loss').forEach(e => e.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  const section = document.getElementById('tab-'+name).closest('.section');
+  section.querySelectorAll('.tab-bar')[0].querySelectorAll('.tab-btn').forEach((b,i) => {
+    const targets = ['maps-loss','monet-loss','compare-loss'];
+    b.classList.toggle('active', targets[i] === name);
+  });
+}
+
+// ========== Init ==========
+for (const ds of ['maps','monet','cityscapes']) {
+  renderGallery(ds, 'ab');
+  renderGallery(ds, 'ba');
+}
+</script>
+</body>
+</html>
