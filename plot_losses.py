@@ -171,11 +171,15 @@ print("=" * 60)
 
 maps_log = os.path.join(PROJECT_DIR, 'checkpoints', 'maps_cyclegan', 'loss_log.txt')
 monet_log = os.path.join(PROJECT_DIR, 'checkpoints', 'monet_cyclegan', 'loss_log.txt')
+cityscapes_log = os.path.join(PROJECT_DIR, 'checkpoints', 'checkpoints',
+                              'cityscapes_cyclegan', 'loss_log.txt')
 
 maps_raw = parse_loss_log(maps_log, 'Maps')
 monet_raw = parse_loss_log(monet_log, 'Monet')
+cityscapes_raw = parse_loss_log(cityscapes_log, 'Cityscapes')
 maps = epoch_means(maps_raw)
 monet = epoch_means(monet_raw)
+cityscapes = epoch_means(cityscapes_raw)
 
 print("=" * 60)
 print()
@@ -302,13 +306,14 @@ plt.close()
 
 
 # =====================================================================
-# 图5: 两个数据集 Cycle Loss 对比
+# 图5: 三个数据集 Cycle Loss 对比
 # =====================================================================
 fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 
 ax = axes[0]
 ax.plot(*maps['cycle_A'], label='Maps cycle_A', linewidth=1.5)
 ax.plot(*monet['cycle_A'], label='Monet cycle_A', linewidth=1.5)
+ax.plot(*cityscapes['cycle_A'], label='Cityscapes cycle_A', linewidth=1.5)
 ax.set_xlabel('Epoch')
 ax.set_ylabel('Loss')
 ax.set_title('cycle_A 对比 (A→B→A 重建)')
@@ -319,6 +324,7 @@ ax.axvline(x=100, color='gray', linestyle='--', alpha=0.5)
 ax = axes[1]
 ax.plot(*maps['cycle_B'], label='Maps cycle_B', linewidth=1.5)
 ax.plot(*monet['cycle_B'], label='Monet cycle_B', linewidth=1.5)
+ax.plot(*cityscapes['cycle_B'], label='Cityscapes cycle_B', linewidth=1.5)
 ax.set_xlabel('Epoch')
 ax.set_ylabel('Loss')
 ax.set_title('cycle_B 对比 (B→A→B 重建)')
@@ -332,18 +338,20 @@ plt.close()
 
 
 # =====================================================================
-# 图6: 两个数据集所有损失的最终值对比 (柱状图)
+# 图6: 三个数据集所有损失的最终值对比 (柱状图)
 # =====================================================================
 labels = LOSS_KEYS
 maps_final = [np.mean(maps_raw[k][200]) if 200 in maps_raw[k] else np.mean(maps_raw[k][max(maps_raw[k].keys())]) for k in labels]
 monet_final = [np.mean(monet_raw[k][200]) if 200 in monet_raw[k] else np.mean(monet_raw[k][max(monet_raw[k].keys())]) for k in labels]
+cityscapes_final = [np.mean(cityscapes_raw[k][200]) if 200 in cityscapes_raw[k] else np.mean(cityscapes_raw[k][max(cityscapes_raw[k].keys())]) for k in labels]
 
 x = np.arange(len(labels))
-width = 0.35
+width = 0.25
 
-fig, ax = plt.subplots(figsize=(12, 5.5))
-bars1 = ax.bar(x - width/2, maps_final, width, label='Maps (epoch 200)', color='#4C72B0')
-bars2 = ax.bar(x + width/2, monet_final, width, label='Monet2Photo (epoch 200)', color='#DD8452')
+fig, ax = plt.subplots(figsize=(14, 5.5))
+bars1 = ax.bar(x - width, maps_final, width, label='Maps (epoch 200)', color='#4C72B0')
+bars2 = ax.bar(x, monet_final, width, label='Monet2Photo (epoch 200)', color='#DD8452')
+bars3 = ax.bar(x + width, cityscapes_final, width, label='Cityscapes (epoch 200)', color='#55A868')
 
 ax.set_ylabel('Loss (epoch mean)')
 ax.set_title('Epoch 200 各损失项最终均值对比')
@@ -354,10 +362,13 @@ ax.grid(True, axis='y', alpha=0.3)
 
 for bar in bars1:
     ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01,
-            f'{bar.get_height():.3f}', ha='center', va='bottom', fontsize=8)
+            f'{bar.get_height():.3f}', ha='center', va='bottom', fontsize=7)
 for bar in bars2:
     ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01,
-            f'{bar.get_height():.3f}', ha='center', va='bottom', fontsize=8)
+            f'{bar.get_height():.3f}', ha='center', va='bottom', fontsize=7)
+for bar in bars3:
+    ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01,
+            f'{bar.get_height():.3f}', ha='center', va='bottom', fontsize=7)
 
 plt.tight_layout()
 plt.savefig(os.path.join(FIGURES_DIR, 'fig6_final_loss_compare.png'), dpi=150)
@@ -406,6 +417,89 @@ for idx, key in enumerate(LOSS_KEYS):
 plt.tight_layout()
 plt.savefig(os.path.join(FIGURES_DIR, 'fig8_monet_all_losses.png'), dpi=150)
 plt.close()
+
+
+# =====================================================================
+# 图9: Cityscapes — Cycle Consistency Loss 与 Identity Loss 随 epoch 变化
+# =====================================================================
+fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+
+ax = axes[0]
+ax.plot(*cityscapes['cycle_A'], label='cycle_A (photo→seg→photo)', linewidth=1.5)
+ax.plot(*cityscapes['cycle_B'], label='cycle_B (seg→photo→seg)', linewidth=1.5)
+ax.set_xlabel('Epoch')
+ax.set_ylabel('Loss')
+ax.set_title('Cityscapes — Cycle Consistency Loss')
+ax.legend()
+ax.grid(True, alpha=0.3)
+ax.axvline(x=100, color='gray', linestyle='--', alpha=0.5)
+
+ax = axes[1]
+ax.plot(*cityscapes['idt_A'], label='idt_A', linewidth=1.5)
+ax.plot(*cityscapes['idt_B'], label='idt_B', linewidth=1.5)
+ax.set_xlabel('Epoch')
+ax.set_ylabel('Loss')
+ax.set_title('Cityscapes — Identity Loss')
+ax.legend()
+ax.grid(True, alpha=0.3)
+ax.axvline(x=100, color='gray', linestyle='--', alpha=0.5)
+
+plt.tight_layout()
+plt.savefig(os.path.join(FIGURES_DIR, 'fig9_cityscapes_cycle_idt.png'), dpi=150)
+plt.close()
+
+
+# =====================================================================
+# 图10: Cityscapes — GAN Loss (生成器 + 判别器) 随 epoch 变化
+# =====================================================================
+fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+
+ax = axes[0]
+ax.plot(*cityscapes['G_A'], label='G_A', linewidth=1.5, alpha=0.85)
+ax.plot(*cityscapes['G_B'], label='G_B', linewidth=1.5, alpha=0.85)
+ax.set_xlabel('Epoch')
+ax.set_ylabel('Loss')
+ax.set_title('Cityscapes — Generator Loss')
+ax.legend()
+ax.grid(True, alpha=0.3)
+ax.axvline(x=100, color='gray', linestyle='--', alpha=0.5)
+
+ax = axes[1]
+ax.plot(*cityscapes['D_A'], label='D_A', linewidth=1.5, alpha=0.85)
+ax.plot(*cityscapes['D_B'], label='D_B', linewidth=1.5, alpha=0.85)
+ax.set_xlabel('Epoch')
+ax.set_ylabel('Loss')
+ax.set_title('Cityscapes — Discriminator Loss')
+ax.legend()
+ax.grid(True, alpha=0.3)
+ax.axvline(x=100, color='gray', linestyle='--', alpha=0.5)
+
+plt.tight_layout()
+plt.savefig(os.path.join(FIGURES_DIR, 'fig10_cityscapes_gan.png'), dpi=150)
+plt.close()
+
+
+# =====================================================================
+# 图11: Cityscapes 全部 8 项损失汇总 (2×4 子图)
+# =====================================================================
+fig, axes = plt.subplots(2, 4, figsize=(18, 8))
+fig.suptitle('Cityscapes — 所有损失项训练曲线', fontsize=14, y=1.01)
+
+for idx, key in enumerate(LOSS_KEYS):
+    ax = axes[idx // 4][idx % 4]
+    epochs, means = cityscapes[key]
+    ax.plot(epochs, means, linewidth=1.2, color='#55A868')
+    ax.set_title(key, fontsize=12)
+    ax.set_xlabel('Epoch', fontsize=9)
+    ax.set_ylabel('Loss', fontsize=9)
+    ax.grid(True, alpha=0.3)
+    ax.axvline(x=100, color='gray', linestyle='--', alpha=0.4)
+    ax.tick_params(labelsize=8)
+
+plt.tight_layout()
+plt.savefig(os.path.join(FIGURES_DIR, 'fig11_cityscapes_all_losses.png'), dpi=150)
+plt.close()
+
 
 print("所有图表已保存至 figures/ 目录：")
 for f in sorted(os.listdir(FIGURES_DIR)):
